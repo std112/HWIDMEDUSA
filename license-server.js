@@ -1,3 +1,22 @@
+const express = require('express');
+const fetch = require('node-fetch');
+const cors = require('cors');
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const SHEETSON_API_KEY = 'GfVV2ogNmpoL8_VGfljrHnCQ67vBGOp6XRx--9fubXY3lQ7UIZDPheMtuvg';
+const SHEET_ID = '1CNHRStQXqTKVacFLLqBPaQP9gdnd02bhNwZCVFuOTv8';
+const SHEET_NAME = 'Licenses';
+const BASE_URL = `https://api.sheetson.com/v2/sheets/${SHEET_NAME}`;
+
+const headers = {
+  'X-Spreadsheet-Id': SHEET_ID,
+  'Authorization': `Bearer ${SHEETSON_API_KEY}`,
+  'Content-Type': 'application/json'
+};
+
 app.post('/check', async (req, res) => {
   const { key, hwid } = req.body;
   if (!key || !hwid) return res.status(400).json({ valid: false, message: 'Missing key or HWID' });
@@ -19,7 +38,6 @@ app.post('/check', async (req, res) => {
     }
 
     if (!record.hwid) {
-      // First time use: bind HWID
       await fetch(`${BASE_URL}/${record.id}`, {
         method: 'PUT',
         headers,
@@ -29,13 +47,10 @@ app.post('/check', async (req, res) => {
     }
 
     if (record.hwid === hwid) {
-      // HWID matches
       return res.json({ valid: true });
     }
 
-    // HWID mismatch - check reset rule
     if (daysSinceReset >= 30) {
-      // Allow reset
       await fetch(`${BASE_URL}/${record.id}`, {
         method: 'PUT',
         headers,
@@ -52,3 +67,6 @@ app.post('/check', async (req, res) => {
     return res.status(500).json({ valid: false, message: 'Server error.' });
   }
 });
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`🔐 License server running on port ${PORT}`));
